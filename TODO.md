@@ -1,9 +1,12 @@
 
-- [ ] Tab system
-- [ ] Library tab
-- [ ] Creating game struct
-- [ ] Serializing game struct
+- [X] Tab system
+- [X] Library tab
+- [X] Creating game struct
+- [X] Serializing game struct
+- [ ] Some pretty GUI for games
+- [ ] Renaming games
 - [ ] Executing games
 - [ ] Showing game size on disc
 - [ ] Uninstalling game
 - [ ] Library search
+- [ ] Showing preview icon for the game (referenced in its json)

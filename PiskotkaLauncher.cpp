@@ -10,6 +10,8 @@ and may not be redistributed without written permission.*/
 #include <stdio.h>
 #include "ImGuiFileDialog/ImGuiFileDialog.h"
 
+#include "AppManager.h"
+
 //Screen dimension constants
 const int SCREEN_WIDTH = 1100;
 const int SCREEN_HEIGHT = 800;
@@ -25,8 +27,13 @@ const ImVec4 COLOR_BLUE(.18f, .62f, 1, 1);
 const ImVec4 COLOR_PURPLE(.27f, .19f, .73f, 1);
 const ImVec4 COLOR_GRAY(.07f, .08f, .08f, 1);
 
+using namespace std;
+
+psk::AppManager* appManager = psk::AppManager::GetInstance();
+
 // Functions definitions
 void Draw();
+string ShowAddGameModal();
 
 // Smaller window booleans
 bool showLibrary = false;
@@ -150,10 +157,15 @@ int main(int, char**)
 
 // Add Graphics here
 void Draw() {
-    /*ImGui::SetNextWindowPos(ImVec2(0, 0));
-    ImGui::SetNextWindowSize(ImVec2(SCREEN_WIDTH, SCREEN_WIDTH));*/
+
+    // ------------------------ Main screen --------------------------
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(ImVec2(SCREEN_WIDTH, SCREEN_WIDTH));
+    ImGui::Begin("main", 0, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize);
+
+
     // ------------------------- Menu start ----------------------------
-    ImGui::BeginMainMenuBar();
+    ImGui::BeginMenuBar();
     // Adding games
     if (ImGui::MenuItem("Add Game", "")) {
         IGFD::FileDialogConfig config;
@@ -162,35 +174,53 @@ void Draw() {
         config.flags = ImGuiFileDialogFlags_Modal;
         ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".exe", config);
     }
-
-    // Launching games
-    if (ImGui::MenuItem("Library", ""))
-        showLibrary = true;
-    ImGui::EndMainMenuBar();
-    // ------------------------- Menu end ----------------------------
-
-    // Draw library
-    ImGui::SetNextWindowSizeConstraints(ImVec2(200, 300), ImVec2(SCREEN_WIDTH, SCREEN_HEIGHT));
-    if (showLibrary) {
-         ImGui::Begin("Library", &showLibrary, ImGuiWindowFlags_NoCollapse);
-
-        ImGui::End();
+    string path = ShowAddGameModal();
+    if (!path.empty())
+    { 
+        appManager->AddApplication(path);
+        path.clear();
     }
 
-    // display
+    ImGui::EndMenuBar();
+    // ------------------------- Menu end ----------------------------
+
+    ImGui::Text("Library");
+    
+    vector<psk::AppdataStruct>* apps = appManager->GetApplications();
+
+    ImGui::BeginGroup();
+    ImGui::Separator();
+    for (int i = 0; i < apps->size(); i++) {
+        ImGui::Text("%s\n%s", apps->at(i).name.c_str(), apps->at(i).executablePath.c_str());
+        ImGui::Separator();
+    }
+
+    ImGui::EndGroup();
+    
+    
+
+
+    ImGui::End();
+    // ------------------------ Main screen --------------------------
+
+    ImGui::ShowDemoWindow();
+}
+
+string ShowAddGameModal() {
+    ImGui::SetNextWindowSizeConstraints(ImVec2(200, 300), ImVec2(SCREEN_WIDTH, SCREEN_HEIGHT));
     if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey", ImGuiWindowFlags_NoCollapse, ImVec2(600, 300), ImVec2(950, 600)))
     {
         // action if OK
         if (ImGuiFileDialog::Instance()->IsOk())
         {
-            std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
-            std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+            string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
+            string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
             // action
+            return filePathName;
         }
 
         // close
         ImGuiFileDialog::Instance()->Close();
     }
-
-    ImGui::ShowDemoWindow();
+    return string();
 }
