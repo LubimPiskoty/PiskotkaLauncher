@@ -11,6 +11,8 @@ and may not be redistributed without written permission.*/
 #include "ImGuiFileDialog/ImGuiFileDialog.h"
 
 #include "AppManager.h"
+#include <iostream>
+#include <shellapi.h>
 
 //Screen dimension constants
 const int SCREEN_WIDTH = 1100;
@@ -31,12 +33,20 @@ using namespace std;
 
 psk::AppManager* appManager = psk::AppManager::GetInstance();
 
-// Functions definitions
+// Functions declarations
+void embraceTheDarkness();
 void Draw();
 string ShowAddGameModal();
+void DrawApplicationBox(psk::AppdataStruct& app, int i, int size);
+void DrawSideBar(psk::AppdataStruct& app);
+void RunApp(psk::AppdataStruct& app);
 
 // Smaller window booleans
 bool showLibrary = false;
+int showAppIndex = -1;
+char* newName = new char[64];
+int horizontalCount = 3;
+
 
 int main(int, char**)
 {
@@ -83,7 +93,9 @@ int main(int, char**)
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
     // Setup Dear ImGui style
+    
     ImGui::StyleColorsDark();
+    embraceTheDarkness();
     //ImGui::StyleColorsLight();
 
     // Setup Platform/Renderer backends
@@ -177,6 +189,7 @@ void Draw() {
     string path = ShowAddGameModal();
     if (!path.empty())
     { 
+        // A way to get name
         appManager->AddApplication(path);
         path.clear();
     }
@@ -185,25 +198,43 @@ void Draw() {
     // ------------------------- Menu end ----------------------------
 
     ImGui::Text("Library");
-    
+    //ImGui::SetNextItemWidth(500);
+    //ImGui::SliderInt("###Grid size", &horizontalCount, 3, 6, "%d items in row", ImGuiSliderFlags_AlwaysClamp);
+    const int botPadding = 50;
     vector<psk::AppdataStruct>* apps = appManager->GetApplications();
 
-    ImGui::BeginGroup();
-    ImGui::Separator();
-    for (int i = 0; i < apps->size(); i++) {
-        ImGui::Text("%s\n%s", apps->at(i).name.c_str(), apps->at(i).executablePath.c_str());
-        ImGui::Separator();
+    { // App selection window
+        ImGui::BeginChild("navbar", ImVec2(SCREEN_WIDTH * 4.0 / 5.0, SCREEN_HEIGHT - botPadding), ImGuiChildFlags_Border);
+        const int boxSize = static_cast<int>((SCREEN_WIDTH * 4.0 / 5.0) / (float)horizontalCount);
+        ImGui::BeginTable("gameList", horizontalCount);
+        //ImGui::TableSetupScrollFreeze(4, 5);
+        for (int i = 0; i < apps->size(); i++) {
+            ImGui::TableNextColumn();
+            DrawApplicationBox(apps->at(i), i, boxSize);
+        }
+        ImGui::EndTable();
+        ImGui::EndChild();
+
+        ImGui::SameLine();
     }
 
-    ImGui::EndGroup();
-    
-    
+    { // App info
+        ImGui::BeginChild("main", ImVec2(0, SCREEN_HEIGHT - botPadding), ImGuiChildFlags_Border);
 
+        if (showAppIndex != -1)
+            DrawSideBar(apps->at(showAppIndex));
+        else
+            ImGui::Text("Selet a application");
+
+
+        ImGui::EndChild();
+    }
 
     ImGui::End();
     // ------------------------ Main screen --------------------------
-
+#ifndef _RELEASE
     ImGui::ShowDemoWindow();
+#endif _RELEASE
 }
 
 string ShowAddGameModal() {
@@ -215,12 +246,192 @@ string ShowAddGameModal() {
         {
             string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
             string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+            ImGuiFileDialog::Instance()->Close();
             // action
             return filePathName;
         }
 
         // close
         ImGuiFileDialog::Instance()->Close();
+       
     }
     return string();
+}
+
+VOID startup(LPCWSTR lpApplicationName)
+{
+    printf("(RUN) Launching: %ls\n", lpApplicationName);
+    // additional information
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+
+    // set the size of the structures
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+
+    // start the program up
+    CreateProcess(lpApplicationName,   // the path
+        NULL,        // Command line
+        NULL,           // Process handle not inheritable
+        NULL,           // Thread handle not inheritable
+        FALSE,          // Set handle inheritance to FALSE
+        0,              // No creation flags
+        NULL,           // Use parent's environment block
+        NULL,           // Use parent's starting directory 
+        &si,            // Pointer to STARTUPINFO structure
+        &pi             // Pointer to PROCESS_INFORMATION structure (removed extra parentheses)
+    );
+    // Close process and thread handles. 
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+}
+
+void DrawApplicationBox(psk::AppdataStruct& app, int i, int size) {
+    
+    ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2(0.5f, 0.5f));
+    if (ImGui::Selectable(app.name.c_str(), i == showAppIndex, ImGuiSelectableFlags_AllowDoubleClick, ImVec2(size, 28))) {
+        // Draw image
+        //ImGui::Image();
+
+        if (ImGui::IsMouseDoubleClicked(0) && showAppIndex == i) {
+             // Launch the app
+            RunApp(app);
+        }
+        showAppIndex = i;
+    }
+    ImGui::PopStyleVar();
+}
+
+void DrawSideBar(psk::AppdataStruct& app) {
+    const ImVec2 btnSize = ImVec2(180, 35);
+    // Main screen
+    ImGui::Text(app.name.c_str());
+    ImGui::Separator();
+    if (ImGui::Button("Launch", btnSize)) {
+        RunApp(app);
+    }
+
+    { // Rename
+        if (ImGui::Button("Rename", btnSize)) {
+            printf("(RENAME) %s\n", app.name.c_str());
+            ImGui::OpenPopup("Rename");
+            memcpy(newName, app.name.data(), 64);
+
+        }
+        bool* isOpen = new bool(true);
+        if (ImGui::BeginPopupModal("Rename", isOpen, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::InputText("New name", newName, 64);
+            if (ImGui::Button("Save")) {
+                // Save the new name
+                appManager->RenameApplication(app.name, newName);
+                ImGui::CloseCurrentPopup();
+
+            }
+            ImGui::EndPopup();
+        }
+    }
+
+    if (ImGui::Button("Open Directory", btnSize)) {
+        printf("(OPEN) %s\n", app.name.c_str());
+        ShellExecuteA(NULL, "open", app.executablePath.parent_path().string().c_str(), NULL, NULL, SW_SHOWDEFAULT);
+    }
+    if (ImGui::Button("Remove", btnSize)) {
+        printf("(REMOVE) %s\n", app.name.c_str());
+        appManager->RemoveApplication(app.name);
+        
+    }
+    /*if (ImGui::Button("Uninstall")) {
+        printf("(UNINSTALL) %s\n", app.name.c_str());
+        
+    }*/
+
+}
+
+void RunApp(psk::AppdataStruct& app) {
+    printf("(RUN) %s\n", app.name.c_str());
+    ShellExecuteA(NULL, "open", app.executablePath.string().c_str(), NULL, NULL, SW_SHOWDEFAULT);
+}
+
+
+void embraceTheDarkness()
+{
+    ImVec4* colors = ImGui::GetStyle().Colors;
+    colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+    colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+    colors[ImGuiCol_WindowBg] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+    colors[ImGuiCol_ChildBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.50f);
+    colors[ImGuiCol_PopupBg] = ImVec4(0.19f, 0.19f, 0.19f, 0.92f);
+    colors[ImGuiCol_Border] = ImVec4(0.19f, 0.19f, 0.19f, 0.29f);
+    colors[ImGuiCol_BorderShadow] = ImVec4(0.30f, 0.30f, 0.30f, 0.8f);
+    colors[ImGuiCol_FrameBg] = ImVec4(0.05f, 0.05f, 0.05f, 0.54f);
+    colors[ImGuiCol_FrameBgHovered] = ImVec4(0.19f, 0.19f, 0.19f, 0.54f);
+    colors[ImGuiCol_FrameBgActive] = ImVec4(0.20f, 0.22f, 0.23f, 1.00f);
+    colors[ImGuiCol_TitleBg] = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+    colors[ImGuiCol_TitleBgActive] = ImVec4(0.06f, 0.06f, 0.06f, 1.00f);
+    colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+    colors[ImGuiCol_MenuBarBg] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+    colors[ImGuiCol_ScrollbarBg] = ImVec4(0.05f, 0.05f, 0.05f, 0.54f);
+    colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.34f, 0.34f, 0.34f, 0.54f);
+    colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.40f, 0.40f, 0.40f, 0.54f);
+    colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.56f, 0.56f, 0.56f, 0.54f);
+    colors[ImGuiCol_CheckMark] = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
+    colors[ImGuiCol_SliderGrab] = ImVec4(0.34f, 0.34f, 0.34f, 0.54f);
+    colors[ImGuiCol_SliderGrabActive] = ImVec4(0.56f, 0.56f, 0.56f, 0.54f);
+    colors[ImGuiCol_Button] = ImVec4(0.05f, 0.05f, 0.05f, 0.54f);
+    colors[ImGuiCol_ButtonHovered] = ImVec4(0.19f, 0.19f, 0.19f, 0.54f);
+    colors[ImGuiCol_ButtonActive] = ImVec4(0.20f, 0.22f, 0.23f, 1.00f);
+    colors[ImGuiCol_Header] = ImVec4(0.00f, 0.00f, 0.00f, 0.8f);
+    colors[ImGuiCol_HeaderHovered] = ImVec4(0.00f, 0.00f, 0.00f, 0.6f);
+    colors[ImGuiCol_HeaderActive] = ImVec4(0.20f, 0.22f, 0.23f, 0.33f);
+    colors[ImGuiCol_Separator] = ImVec4(0.28f, 0.28f, 0.28f, 0.29f);
+    colors[ImGuiCol_SeparatorHovered] = ImVec4(0.44f, 0.44f, 0.44f, 0.29f);
+    colors[ImGuiCol_SeparatorActive] = ImVec4(0.40f, 0.44f, 0.47f, 1.00f);
+    colors[ImGuiCol_ResizeGrip] = ImVec4(0.28f, 0.28f, 0.28f, 0.29f);
+    colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.44f, 0.44f, 0.44f, 0.29f);
+    colors[ImGuiCol_ResizeGripActive] = ImVec4(0.40f, 0.44f, 0.47f, 1.00f);
+    colors[ImGuiCol_Tab] = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
+    colors[ImGuiCol_TabHovered] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+    colors[ImGuiCol_TabActive] = ImVec4(0.20f, 0.20f, 0.20f, 0.36f);
+    colors[ImGuiCol_TabUnfocused] = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
+    colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+    colors[ImGuiCol_PlotLines] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
+    colors[ImGuiCol_PlotLinesHovered] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
+    colors[ImGuiCol_PlotHistogram] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
+    colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
+    colors[ImGuiCol_TableHeaderBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
+    colors[ImGuiCol_TableBorderStrong] = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
+    colors[ImGuiCol_TableBorderLight] = ImVec4(0.28f, 0.28f, 0.28f, 0.29f);
+    colors[ImGuiCol_TableRowBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    colors[ImGuiCol_TableRowBgAlt] = ImVec4(1.00f, 1.00f, 1.00f, 0.06f);
+    colors[ImGuiCol_TextSelectedBg] = ImVec4(0.20f, 0.22f, 0.23f, 1.00f);
+    colors[ImGuiCol_DragDropTarget] = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
+    colors[ImGuiCol_NavHighlight] = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+    colors[ImGuiCol_NavWindowingHighlight] = ImVec4(0.00f, 0.00f, 0.00f, 0.70f);
+    colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.35f);
+    colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.7f);
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.WindowPadding = ImVec2(8.00f, 8.00f);
+    style.FramePadding = ImVec2(5.00f, 2.00f);
+    style.CellPadding = ImVec2(6.00f, 6.00f);
+    style.ItemSpacing = ImVec2(6.00f, 6.00f);
+    style.ItemInnerSpacing = ImVec2(6.00f, 6.00f);
+    style.TouchExtraPadding = ImVec2(0.00f, 0.00f);
+    style.IndentSpacing = 25;
+    style.ScrollbarSize = 15;
+    style.GrabMinSize = 10;
+    style.WindowBorderSize = 1;
+    style.ChildBorderSize = 1;
+    style.PopupBorderSize = 1;
+    style.FrameBorderSize = 1;
+    style.TabBorderSize = 1;
+    style.WindowRounding = 7;
+    style.ChildRounding = 4;
+    style.FrameRounding = 3;
+    style.PopupRounding = 4;
+    style.ScrollbarRounding = 9;
+    style.GrabRounding = 3;
+    style.LogSliderDeadzone = 4;
+    style.TabRounding = 4;
 }

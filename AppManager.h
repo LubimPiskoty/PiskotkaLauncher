@@ -2,7 +2,7 @@
 
 #include <string>
 #include <vector>
-#include <nlohmann/json.hpp>;
+#include "nlohmann/json.hpp";
 #include <filesystem>
 
 namespace fs = std::filesystem;
@@ -13,12 +13,14 @@ namespace psk {
 
 	struct AppdataStruct {
 		string name;
-		string executablePath;
+		string executable;
+		fs::path executablePath;
+		fs::path datafilePath;
 	};
 
 	static void PrintAppDataStruct(AppdataStruct& app) {
 		printf("-------------------\n");
-		printf("Name: %s\nExecutable path: %s\n", app.name.c_str(), app.executablePath.c_str());
+		printf("Name: %ls\nExecutable path: %ls\n", app.name.c_str(), app.executablePath.c_str());
 		printf("-------------------\n");
 	}
 
@@ -49,6 +51,10 @@ namespace psk {
 
 		bool AddApplication(string& executablePath);
 
+		bool RenameApplication(string oldName, string newName);
+
+		bool RemoveApplication(string Name);
+
 	private:
 		vector<AppdataStruct>* applications = new vector<AppdataStruct>;
 
@@ -59,6 +65,8 @@ namespace psk {
 		void CreateDir();
 
 		void CreateFile();
+
+		bool DeleteFile(fs::path filePath);
 
 		json AppDataToJson(AppdataStruct appData);
 

@@ -1,5 +1,6 @@
 #include "AppManager.h"
 #include <fstream>
+#include <sstream>
 
 using namespace psk;
 
@@ -12,14 +13,78 @@ vector<AppdataStruct>* AppManager::GetApplications() {
 }
 
 bool AppManager::AddApplication(string& executablePath) {
+	// first check if it already exists in vector
+	for (int i = 0; i < applications->size(); i++) {
+		if (applications->at(i).executable == executablePath) {
+			// The same app
+			printf("(AppManager) Application already added!");
+			return false;
+		}
+	}
+
 	AppdataStruct app;
 	app.name = fs::path(executablePath).filename().string();
+	app.executable = executablePath;
 	app.executablePath = executablePath;
 	applications->push_back(app);
 
 	printf("(AppManager) Adding application (%s)\n", executablePath.c_str());
 	SaveAppData();
 	return true;
+}
+
+bool psk::AppManager::RenameApplication(string oldName, string newName)
+{
+	printf("(AppManger) Renaming %s ", oldName.c_str());
+	// prevent renaming to same names
+	for (int i = 0; i < applications->size(); i++) {
+		if (applications->at(i).name == newName) {
+			printf("FAILED - Already exists\n");
+			return false;
+		}
+	}
+
+
+	// find original
+	for (int i = 0; i < applications->size(); i++) {
+		if (applications->at(i).name == oldName) {
+			fs::path oldFilepath = applications->at(i).datafilePath;
+
+			applications->at(i).name = newName;
+			applications->at(i).datafilePath.replace_filename(newName.append(".json"));
+
+			printf("SUCCESS - Renamed to %s\n", newName.c_str());
+
+			DeleteFile(oldFilepath);
+			SaveAppData();
+			return true;
+		}
+	}
+	printf("FAILED - No app with this name\n");
+	return false;
+}
+
+bool psk::AppManager::RemoveApplication(string name)
+{
+	printf("(AppManger) Removing %s ", name.c_str());
+	int index = -1;
+	fs::path filePath;
+	for (int i = 0; i < applications->size(); i++) {
+		if (applications->at(i).name == name) {
+			index = i;
+			filePath = applications->at(i).datafilePath;
+			break;
+		}
+	}
+	if (index != -1) {
+		vector<psk::AppdataStruct>::iterator iter1 = applications->begin() + index;
+		applications->erase(iter1);
+		printf("SUCCESS\n");
+		DeleteFile(filePath);
+		return true;
+	}
+	printf("FAILED\n");
+	return false;
 }
 
 void AppManager::SaveAppData() {
@@ -56,15 +121,22 @@ void AppManager::LoadAppData() {
 	for (const auto& entry : fs::directory_iterator(appdataPath)) {
 		fs::path filePath = entry.path();
 
+
 		// Skip non json files
 		if (filePath.extension() != ".json")
 			continue;
 
 		// Read the file
+		std::string line, contents;
 		ifstream file(filePath);
-		string contents = "";
-		file >> contents;
+		if (file)
+			while (getline(file, line))
+				contents.append(line);
+
 		file.close();
+
+		
+		printf("(AppData) Found file: %s\n", filePath.filename().string().c_str());
 
 		if (!contents.size()) {
 			// No data skip parsing
@@ -73,14 +145,16 @@ void AppManager::LoadAppData() {
 
 		// Parse it into json
 		json parsedData = json::parse(contents);
-		if (!parsedData.contains("name") || parsedData.contains("executablePath"))
+		if (!parsedData.contains("name") || !parsedData.contains("executablePath"))
 		{
 			printf("(AppManager) ERROR: json format lacks fields (%s)", filePath.string().c_str());
 		}
 		// Loading the data into memory
 		AppdataStruct appStruct;
 		appStruct.name = parsedData["name"];
-		appStruct.executablePath = parsedData["executablePath"];
+		appStruct.executable = parsedData["executablePath"];
+		appStruct.executablePath = fs::path(string(parsedData["executablePath"]));
+		appStruct.datafilePath = filePath;
 
 		applications->push_back(appStruct);
 	}
@@ -97,6 +171,17 @@ void AppManager::CreateDir()
 void psk::AppManager::CreateFile()
 {
 
+}
+
+bool psk::AppManager::DeleteFile(fs::path filePath)
+{
+	printf("(AppManger) Deleting file: %s ", filePath.string().c_str());
+	if (fs::remove(filePath)) {
+		printf("SUCCESS\n");
+		return true;
+	}
+	printf("FAILED\n");
+	return false;
 }
 
 json AppManager::AppDataToJson(AppdataStruct appData)
