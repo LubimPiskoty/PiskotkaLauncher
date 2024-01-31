@@ -206,13 +206,15 @@ void Draw() {
     { // App selection window
         ImGui::BeginChild("navbar", ImVec2(SCREEN_WIDTH * 4.0 / 5.0, SCREEN_HEIGHT - botPadding), ImGuiChildFlags_Border);
         const int boxSize = static_cast<int>((SCREEN_WIDTH * 4.0 / 5.0) / (float)horizontalCount);
-        ImGui::BeginTable("gameList", horizontalCount);
-        //ImGui::TableSetupScrollFreeze(4, 5);
-        for (int i = 0; i < apps->size(); i++) {
-            ImGui::TableNextColumn();
-            DrawApplicationBox(apps->at(i), i, boxSize);
-        }
-        ImGui::EndTable();
+
+        if(ImGui::BeginTable("gameList", horizontalCount))
+            //ImGui::TableSetupScrollFreeze(4, 5);
+            for (int i = 0; i < apps->size(); i++) {
+                ImGui::TableNextColumn();
+                DrawApplicationBox(apps->at(i), i, boxSize);
+            }
+            ImGui::EndTable();
+        
         ImGui::EndChild();
 
         ImGui::SameLine();
@@ -221,7 +223,7 @@ void Draw() {
     { // App info
         ImGui::BeginChild("main", ImVec2(0, SCREEN_HEIGHT - botPadding), ImGuiChildFlags_Border);
 
-        if (showAppIndex != -1)
+        if (showAppIndex != -1 && apps->size() > showAppIndex)
             DrawSideBar(apps->at(showAppIndex));
         else
             ImGui::Text("Selet a application");
@@ -232,9 +234,9 @@ void Draw() {
 
     ImGui::End();
     // ------------------------ Main screen --------------------------
-#ifndef _RELEASE
+#ifdef _DEBUG
     ImGui::ShowDemoWindow();
-#endif _RELEASE
+#endif _DEBUG
 }
 
 string ShowAddGameModal() {

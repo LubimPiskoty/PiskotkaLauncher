@@ -9,6 +9,7 @@
 - [ ] Pretty menu bar
 
 ### Ver2
+- [ ] Create custom topbar
 - [ ] Showing preview icon for the game (referenced in its json)
 - [ ] Library search
 - [ ] Some pretty GUI for games
