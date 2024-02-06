@@ -35,7 +35,7 @@ psk::AppManager* appManager = psk::AppManager::GetInstance();
 
 // Functions declarations
 void embraceTheDarkness();
-void Draw();
+void Draw(SDL_Window* window);
 string ShowAddGameModal();
 void DrawApplicationBox(psk::AppdataStruct& app, int i, int size);
 void DrawSideBar(psk::AppdataStruct& app);
@@ -46,6 +46,7 @@ bool showLibrary = false;
 int showAppIndex = -1;
 char* newName = new char[64];
 int horizontalCount = 3;
+bool done = false;
 
 
 int main(int, char**)
@@ -73,7 +74,7 @@ int main(int, char**)
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-    SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+    SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_BORDERLESS);
     SDL_Window* window = SDL_CreateWindow("Piskotka Launcher", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH, SCREEN_HEIGHT, window_flags);
     if (window == nullptr)
     {
@@ -120,7 +121,6 @@ int main(int, char**)
     //IM_ASSERT(font != nullptr);
 
     // Main loop
-    bool done = false;
     while (!done)
     {
         // Poll and handle events (inputs, window resize, etc.)
@@ -144,7 +144,7 @@ int main(int, char**)
         ImGui::NewFrame();
 
         // Add objects to render queue
-        Draw();
+        Draw(window);
 
         // Rendering
         ImGui::Render();
@@ -168,7 +168,7 @@ int main(int, char**)
 }
 
 // Add Graphics here
-void Draw() {
+void Draw(SDL_Window* window) {
 
     // ------------------------ Main screen --------------------------
     ImGui::SetNextWindowPos(ImVec2(0, 0));
@@ -192,6 +192,18 @@ void Draw() {
         // A way to get name
         appManager->AddApplication(path);
         path.clear();
+    }
+
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - 35);
+
+    if (ImGui::MenuItem("-", "Space")) {
+        printf("(D) Minimize clicked!\n");
+        SDL_MinimizeWindow(window);
+    }
+
+    if (ImGui::MenuItem("X", "Alt + F4")) {
+        printf("(D) Close clicked!\n");
+        done = true;
     }
 
     ImGui::EndMenuBar();

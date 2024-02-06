@@ -244,6 +244,8 @@
     <ClInclude Include="imstb_rectpack.h" />
     <ClInclude Include="imstb_textedit.h" />
     <ClInclude Include="imstb_truetype.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="resource1.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="imgui.natstepfilter" />
@@ -251,6 +253,12 @@
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="imgui.natvis" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="PiskotkaLauncher.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="LGOO_PISKOTKA_LUNCER.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
