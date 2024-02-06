@@ -26,6 +26,7 @@ bool AppManager::AddApplication(string& executablePath) {
 	app.name = fs::path(executablePath).filename().string();
 	app.executable = executablePath;
 	app.executablePath = executablePath;
+	app.datafilePath = GetAppPath(app);
 	applications->push_back(app);
 
 	printf("(AppManager) Adding application (%s)\n", executablePath.c_str());
@@ -49,13 +50,13 @@ bool psk::AppManager::RenameApplication(string oldName, string newName)
 	for (int i = 0; i < applications->size(); i++) {
 		if (applications->at(i).name == oldName) {
 			fs::path oldFilepath = applications->at(i).datafilePath;
+			DeleteFile(oldFilepath);
 
 			applications->at(i).name = newName;
 			applications->at(i).datafilePath.replace_filename(newName.append(".json"));
 
 			printf("SUCCESS - Renamed to %s\n", newName.c_str());
 
-			DeleteFile(oldFilepath);
 			SaveAppData();
 			return true;
 		}
@@ -96,7 +97,7 @@ void AppManager::SaveAppData() {
 	
 	// Loop over all apps and find/create .json files
 	for (const auto& app : *applications){
-		fs::path filePath = appdataPath.string() + "\\" + app.name + ".json";
+		fs::path filePath = GetAppPath(app);
 		/*if (!fs::exists(filePath))
 			CreateFile();*/
 
@@ -173,7 +174,7 @@ void psk::AppManager::CreateFile()
 
 }
 
-bool psk::AppManager::DeleteFile(fs::path filePath)
+bool psk::AppManager::DeleteFile(fs::path& filePath)
 {
 	printf("(AppManger) Deleting file: %s ", filePath.string().c_str());
 	if (fs::remove(filePath)) {

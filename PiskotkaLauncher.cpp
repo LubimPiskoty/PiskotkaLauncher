@@ -207,13 +207,14 @@ void Draw() {
         ImGui::BeginChild("navbar", ImVec2(SCREEN_WIDTH * 4.0 / 5.0, SCREEN_HEIGHT - botPadding), ImGuiChildFlags_Border);
         const int boxSize = static_cast<int>((SCREEN_WIDTH * 4.0 / 5.0) / (float)horizontalCount);
 
-        if(ImGui::BeginTable("gameList", horizontalCount))
+        if (ImGui::BeginTable("gameList", horizontalCount)) {
             //ImGui::TableSetupScrollFreeze(4, 5);
             for (int i = 0; i < apps->size(); i++) {
                 ImGui::TableNextColumn();
                 DrawApplicationBox(apps->at(i), i, boxSize);
             }
             ImGui::EndTable();
+        }
         
         ImGui::EndChild();
 

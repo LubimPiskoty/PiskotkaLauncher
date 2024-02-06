@@ -66,9 +66,13 @@ namespace psk {
 
 		void CreateFile();
 
-		bool DeleteFile(fs::path filePath);
+		bool DeleteFile(fs::path& filePath);
 
 		json AppDataToJson(AppdataStruct appData);
+
+		fs::path GetAppPath(const AppdataStruct& app) {
+			return appdataPath.string() + "\\" + app.name + ".json";
+		}
 
 	};
 }
